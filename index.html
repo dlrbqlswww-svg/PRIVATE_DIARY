@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Private Log | 나만의 기록</title>
+
+  <!-- iOS Standalone Web App Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="나만의기록">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#09090b">
+
+  <!-- Tailwind CSS & FontAwesome Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            iosBg: {
+              light: '#f2f2f7',
+              dark: '#000000'
+            },
+            iosCard: {
+              light: '#ffffff',
+              dark: '#1c1c1e'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    /* iOS Safe Area handling */
+    :root {
+      --sat: env(safe-area-inset-top, 20px);
+      --sab: env(safe-area-inset-bottom, 20px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+    }
+    .pt-safe { padding-top: var(--sat); }
+    .pb-safe { padding-bottom: var(--sab); }
+    .top-safe { top: var(--sat); }
+    .bottom-safe { bottom: var(--sab); }
+
+    /* Native iOS smooth touch feel */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input, textarea, [contenteditable="true"] {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    
+    /* Scrollbar hide for slick mobile feel */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .glass-nav {
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 dark:bg-black text-slate-800 dark:text-zinc-100 h-full flex flex-col font-sans transition-colors duration-200">
+
+  <!-- PIN Lock Screen Overlay -->
+  <div id="pinLockScreen" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-between py-12 px-6 hidden">
+    <div class="pt-8 text-center">
+      <div class="w-16 h-16 rounded-full bg-zinc-800 border border-zinc-700 mx-auto flex items-center justify-center text-zinc-300 text-2xl mb-4 shadow-lg">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+      <h2 class="text-xl font-bold tracking-tight text-white">비공개 일기장</h2>
+      <p class="text-xs text-zinc-400 mt-1">4자리 암호를 입력해 잠금을 해제하세요</p>
+      
+      <!-- PIN Dots -->
+      <div class="flex justify-center gap-4 mt-6" id="pinDots">
+        <div class="w-3.5 h-3.5 rounded-full border border-zinc-500 transition-all"></div>
+        <div class="w-3.5 h-3.5 rounded-full border border-zinc-500 transition-all"></div>
+        <div class="w-3.5 h-3.5 rounded-full border border-zinc-500 transition-all"></div>
+        <div class="w-3.5 h-3.5 rounded-full border border-zinc-500 transition-all"></div>
+      </div>
+    </div>
+
+    <!-- Keypad -->
+    <div class="w-full max-w-xs grid grid-cols-3 gap-4 text-white text-2xl font-light">
+      <button onclick="handleKeypad('1')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">1</button>
+      <button onclick="handleKeypad('2')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">2</button>
+      <button onclick="handleKeypad('3')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">3</button>
+      <button onclick="handleKeypad('4')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">4</button>
+      <button onclick="handleKeypad('5')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">5</button>
+      <button onclick="handleKeypad('6')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">6</button>
+      <button onclick="handleKeypad('7')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">7</button>
+      <button onclick="handleKeypad('8')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">8</button>
+      <button onclick="handleKeypad('9')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">9</button>
+      <button onclick="clearPin()" class="h-16 w-16 mx-auto rounded-full flex items-center justify-center text-sm font-normal text-zinc-400 active:text-white">취소</button>
+      <button onclick="handleKeypad('0')" class="h-16 w-16 mx-auto rounded-full bg-zinc-800 active:bg-zinc-700 flex items-center justify-center transition">0</button>
+      <button onclick="backspacePin()" class="h-16 w-16 mx-auto rounded-full flex items-center justify-center text-lg active:text-zinc-400"><i class="fa-solid fa-delete-left"></i></button>
+    </div>
+    
+    <div class="text-[11px] text-zinc-500 flex items-center gap-1.5">
+      <i class="fa-solid fa-shield-halved text-emerald-400"></i> 기기 내부에서만 검증됩니다
+    </div>
+  </div>
+
+  <header class="sticky top-0 z-30 pt-safe bg-white/80 dark:bg-zinc-950/80 glass-nav border-b border-gray-200 dark:border-zinc-800/80 transition-colors">
+    <div class="max-w-xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+          <span>Private Log</span>
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+            <i class="fa-solid fa-lock text-[9px] mr-1"></i> 100% 로컬
+          </span>
+        </h1>
+      </div>
+      <div class="flex items-center gap-1">
+        <button id="themeToggleBtn" onclick="toggleTheme()" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800">
+          <i class="fa-solid fa-moon dark:hidden"></i>
+          <i class="fa-solid fa-sun hidden dark:inline"></i>
+        </button>
+        <button onclick="openSettingsModal()" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800">
+          <i class="fa-solid fa-sliders"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-xl mx-auto w-full px-4 pt-3 pb-1">
+    <!-- Search Bar -->
+    <div class="relative flex items-center mb-2.5">
+      <i class="fa-solid fa-magnifying-glass absolute left-3 text-slate-400 dark:text-zinc-500 text-xs"></i>
+      <input type="text" id="searchInput" oninput="applyFilters()" placeholder="생각, 키워드, 태그 검색..." 
+        class="w-full bg-gray-200/80 dark:bg-zinc-900 text-sm pl-8 pr-8 py-2 rounded-xl border border-transparent focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none transition">
+      <button onclick="clearSearch()" id="clearSearchBtn" class="absolute right-2.5 text-zinc-400 hover:text-zinc-600 hidden text-xs">
+        <i class="fa-solid fa-circle-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Category Filter Chips -->
+    <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs" id="categoryChips">
+      <button onclick="selectCategoryFilter('all')" class="chip active-chip px-3 py-1.5 rounded-full bg-slate-900 text-white dark:bg-white dark:text-black font-medium shrink-0">전체</button>
+      <button onclick="selectCategoryFilter('💡 생각')" class="chip px-3 py-1.5 rounded-full bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 shrink-0">💡 생각</button>
+      <button onclick="selectCategoryFilter('🌿 일상')" class="chip px-3 py-1.5 rounded-full bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 shrink-0">🌿 일상</button>
+      <button onclick="selectCategoryFilter('🎯 목표')" class="chip px-3 py-1.5 rounded-full bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 shrink-0">🎯 목표</button>
+      <button onclick="selectCategoryFilter('🔒 비밀')" class="chip px-3 py-1.5 rounded-full bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 shrink-0">🔒 비밀</button>
+      <button onclick="selectCategoryFilter('pinned')" class="chip px-3 py-1.5 rounded-full bg-gray-200 dark:bg-zinc-800 text-amber-600 dark:text-amber-400 shrink-0">⭐ 고정글</button>
+    </div>
+  </div>
+
+  <main class="flex-1 overflow-y-auto px-4 max-w-xl mx-auto w-full pb-28 pt-2">
+    <!-- Notice Card -->
+    <div class="mb-4 p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 flex items-start gap-3">
+      <i class="fa-solid fa-shield-cat text-blue-500 text-lg mt-0.5"></i>
+      <div class="text-xs text-blue-900 dark:text-blue-200 leading-relaxed">
+        <strong>인터넷 연결 없이 기기 내부 보관</strong><br>
+        모든 일기와 이미지는 본 브라우저 Local Database에만 저장되며 외부 서버로 전송되지 않습니다.
+      </div>
+    </div>
+
+    <!-- Posts Feed Container -->
+    <div id="postsContainer" class="space-y-3.5">
+      <!-- Dynamic Posts Inserted Here -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="py-16 text-center text-slate-400 dark:text-zinc-600 hidden">
+      <i class="fa-regular fa-pen-to-square text-4xl mb-3 opacity-60"></i>
+      <p class="text-sm font-medium">작성된 기록이 없습니다.</p>
+      <p class="text-xs mt-1">하단의 <strong>+ 새 글</strong> 버튼을 눌러 첫 생각을 남겨보세요.</p>
+    </div>
+  </main>
+
+  <nav class="fixed bottom-0 left-0 right-0 z-30 pb-safe bg-white/80 dark:bg-zinc-950/80 glass-nav border-t border-gray-200 dark:border-zinc-800/80">
+    <div class="max-w-xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+        <span id="postCountBadge" class="font-bold text-slate-900 dark:text-white">0</span>개의 기록
+      </div>
+
+      <!-- Write New Post Button -->
+      <button onclick="openEditorModal()" class="px-5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-medium text-sm shadow-md flex items-center gap-2 transition transform">
+        <i class="fa-solid fa-plus text-xs"></i>
+        <span>새 글 쓰기</span>
+      </button>
+
+      <button onclick="togglePinLockManual()" title="즉시 화면 잠금" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800">
+        <i class="fa-solid fa-lock text-sm"></i>
+      </button>
+    </div>
+  </nav>
+
+  <div id="editorModal" class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm hidden flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4">
+    <div class="bg-white dark:bg-zinc-900 w-full sm:max-w-lg h-[92vh] sm:h-auto sm:max-h-[85vh] rounded-t-3xl sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-gray-200 dark:border-zinc-800 transition-all">
+      <!-- Modal Header -->
+      <div class="px-4 py-3 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+        <button onclick="closeEditorModal()" class="text-sm text-slate-500 dark:text-zinc-400 hover:text-slate-900">취소</button>
+        <span id="editorModalTitle" class="text-sm font-semibold">새 기록 남기기</span>
+        <button onclick="savePost()" class="text-sm font-semibold text-blue-600 dark:text-blue-400">완료</button>
+      </div>
+
+      <!-- Editor Scroll Content -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- Mood / Category Selector -->
+        <div class="flex gap-2 items-center overflow-x-auto no-scrollbar pb-1 text-xs">
+          <label class="text-slate-400 shrink-0 font-medium">분류:</label>
+          <div class="flex gap-1.5" id="categoryRadios">
+            <button type="button" onclick="selectPostCategory('💡 생각')" class="cat-opt px-2.5 py-1 rounded-full border border-gray-300 dark:border-zinc-700 bg-blue-50 dark:bg-blue-950/60 border-blue-400 text-blue-600 dark:text-blue-400">💡 생각</button>
+            <button type="button" onclick="selectPostCategory('🌿 일상')" class="cat-opt px-2.5 py-1 rounded-full border border-gray-300 dark:border-zinc-700">🌿 일상</button>
+            <button type="button" onclick="selectPostCategory('🎯 목표')" class="cat-opt px-2.5 py-1 rounded-full border border-gray-300 dark:border-zinc-700">🎯 목표</button>
+            <button type="button" onclick="selectPostCategory('🔒 비밀')" class="cat-opt px-2.5 py-1 rounded-full border border-gray-300 dark:border-zinc-700">🔒 비밀</button>
+          </div>
+        </div>
+
+        <!-- Title -->
+        <input type="text" id="postTitle" placeholder="제목 (선택)" 
+          class="w-full bg-transparent text-lg font-bold text-slate-900 dark:text-white placeholder-slate-400 border-b border-gray-100 dark:border-zinc-800 pb-2 focus:outline-none">
+
+        <!-- Body Content -->
+        <textarea id="postContent" rows="8" placeholder="지금 어떤 생각을 하고 계신가요? (마크다운 지원)"
+          class="w-full bg-transparent text-sm leading-relaxed text-slate-800 dark:text-zinc-200 placeholder-slate-400 focus:outline-none resize-none"></textarea>
+
+        <!-- Attached Image Preview Container -->
+        <div id="imagePreviewContainer" class="hidden relative rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-700">
+          <img id="imagePreview" class="w-full max-h-56 object-cover" src="" alt="첨부 이미지">
+          <button onclick="removeAttachedImage()" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center text-xs">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Toolbar Buttons: Image, Tags -->
+        <div class="pt-2 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400">
+          <div class="flex items-center gap-3">
+            <label class="cursor-pointer hover:text-blue-500 flex items-center gap-1">
+              <i class="fa-regular fa-image text-base"></i>
+              <span>사진 추가</span>
+              <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageAttach(event)">
+            </label>
+            <button type="button" onclick="togglePinInEditor()" id="editorPinBtn" class="flex items-center gap-1 hover:text-amber-500">
+              <i class="fa-regular fa-star"></i>
+              <span>상단 고정</span>
+            </button>
+          </div>
+          <div class="text-[11px] text-zinc-400" id="charCount">0자</div>
+        </div>
+
+        <!-- Tags Input -->
+        <div>
+          <input type="text" id="postTags" placeholder="#태그 (쉼표나 띄어쓰기로 구분)" 
+            class="w-full bg-gray-100 dark:bg-zinc-800/60 text-xs px-3 py-2 rounded-lg border border-transparent focus:border-blue-500 focus:outline-none">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl border border-gray-200 dark:border-zinc-800">
+      <div class="px-5 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 dark:text-white text-base">설정 및 데이터 관리</h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="p-5 space-y-4 text-xs">
+        <!-- Security PIN Section -->
+        <div class="p-3 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700/60">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <p class="font-semibold text-slate-800 dark:text-zinc-200 text-sm">앱 잠금 (PIN)</p>
+              <p class="text-slate-400 text-[11px]">앱 실행 시 4자리 비밀번호 요구</p>
+            </div>
+            <button onclick="togglePinSetting()" id="pinToggleStatusBtn" class="px-2.5 py-1 rounded bg-slate-200 dark:bg-zinc-700 font-medium">
+              설정하기
+            </button>
+          </div>
+        </div>
+
+        <!-- Export Backup -->
+        <div>
+          <label class="font-semibold block mb-1 text-slate-700 dark:text-zinc-300">데이터 백업 (내보내기)</label>
+          <p class="text-slate-400 text-[11px] mb-2">기기 변경이나 백업용으로 저장된 모든 글과 사진을 JSON 파일로 추출합니다.</p>
+          <button onclick="exportBackupData()" class="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 font-medium text-slate-800 dark:text-zinc-200 flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-file-export"></i>
+            <span>모든 데이터 백업 파일 다운로드</span>
+          </button>
+        </div>
+
+        <!-- Import Backup -->
+        <div>
+          <label class="font-semibold block mb-1 text-slate-700 dark:text-zinc-300">데이터 복원 (가져오기)</label>
+          <p class="text-slate-400 text-[11px] mb-2">이전에 다운로드한 백업 JSON 파일을 불러와 복원합니다.</p>
+          <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importBackupData(event)">
+          <button onclick="document.getElementById('importFileInput').click()" class="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 font-medium text-slate-800 dark:text-zinc-200 flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-file-import"></i>
+            <span>백업 파일 선택 후 복원</span>
+          </button>
+        </div>
+
+        <!-- Clear All -->
+        <div class="pt-2 border-t border-gray-100 dark:border-zinc-800">
+          <button onclick="clearAllDataPrompt()" class="w-full py-2 text-rose-500 hover:text-rose-600 text-[11px] font-medium text-center">
+            모든 기록 초기화 (데이터 영구 삭제)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Simple In-App Custom Toast -->
+  <div id="toast" class="fixed top-12 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-900/90 text-white text-xs shadow-lg backdrop-blur-md transition-all duration-300 opacity-0 pointer-events-none">
+    알림 메시지
+  </div>
+
+  <script>
+    /* Global Application State */
+    let db = null;
+    let posts = [];
+    let currentCategoryFilter = 'all';
+    let currentEditingPostId = null;
+    let currentSelectedCategory = '💡 생각';
+    let currentIsPinned = false;
+    let currentAttachedImageBase64 = null;
+    let enteredPin = "";
+
+    // Local Storage Keys
+    const PIN_KEY = 'privatelog_user_pin';
+    const THEME_KEY = 'privatelog_theme';
+
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("PrivateLogDB", 1);
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains("posts")) {
+            const store = database.createObjectStore("posts", { keyPath: "id" });
+            store.createIndex("createdAt", "createdAt", { unique: false });
+            store.createIndex("isPinned", "isPinned", { unique: false });
+          }
+        };
+        request.onsuccess = (e) => {
+          db = e.target.result;
+          resolve(db);
+        };
+        request.onerror = (e) => {
+          console.error("IndexedDB error:", e);
+          reject(e);
+        };
+      });
+    }
+
+    async function fetchAllPostsFromDB() {
+      return new Promise((resolve) => {
+        const tx = db.transaction("posts", "readonly");
+        const store = tx.objectStore("posts");
+        const request = store.getAll();
+        request.onsuccess = () => {
+          let list = request.result || [];
+          // Sort: Pinned first, then newest date
+          list.sort((a, b) => {
+            if (a.isPinned !== b.isPinned) return b.isPinned ? 1 : -1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          });
+          resolve(list);
+        };
+        request.onerror = () => resolve([]);
+      });
+    }
+
+    async function savePostToDB(post) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("posts", "readwrite");
+        const store = tx.objectStore("posts");
+        const request = store.put(post);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e);
+      });
+    }
+
+    async function deletePostFromDB(id) {
+      return new Promise((resolve) => {
+        const tx = db.transaction("posts", "readwrite");
+        const store = tx.objectStore("posts");
+        store.delete(id);
+        tx.oncomplete = () => resolve();
+      });
+    }
+
+    function checkPinOnLaunch() {
+      const savedPin = localStorage.getItem(PIN_KEY);
+      if (savedPin) {
+        document.getElementById('pinLockScreen').classList.remove('hidden');
+      }
+      updatePinSettingsButtonLabel();
+    }
+
+    function handleKeypad(digit) {
+      if (enteredPin.length < 4) {
+        enteredPin += digit;
+        updatePinDots();
+        if (enteredPin.length === 4) {
+          setTimeout(verifyPin, 100);
+        }
+      }
+    }
+
+    function clearPin() {
+      enteredPin = "";
+      updatePinDots();
+    }
+
+    function backspacePin() {
+      enteredPin = enteredPin.slice(0, -1);
+      updatePinDots();
+    }
+
+    function updatePinDots() {
+      const dots = document.getElementById('pinDots').children;
+      for (let i = 0; i < 4; i++) {
+        if (i < enteredPin.length) {
+          dots[i].className = "w-3.5 h-3.5 rounded-full bg-blue-500 border border-blue-400 shadow-md scale-110 transition-all";
+        } else {
+          dots[i].className = "w-3.5 h-3.5 rounded-full border border-zinc-500 transition-all";
+        }
+      }
+    }
+
+    function verifyPin() {
+      const savedPin = localStorage.getItem(PIN_KEY);
+      if (enteredPin === savedPin) {
+        document.getElementById('pinLockScreen').classList.add('hidden');
+        enteredPin = "";
+        updatePinDots();
+        showToast("잠금이 해제되었습니다");
+      } else {
+        showToast("암호가 일치하지 않습니다");
+        clearPin();
+      }
+    }
+
+    function togglePinLockManual() {
+      const savedPin = localStorage.getItem(PIN_KEY);
+      if (!savedPin) {
+        showToast("설정에서 먼저 PIN 번호를 등록해주세요");
+        openSettingsModal();
+        return;
+      }
+      enteredPin = "";
+      updatePinDots();
+      document.getElementById('pinLockScreen').classList.remove('hidden');
+    }
+
+    function togglePinSetting() {
+      const current = localStorage.getItem(PIN_KEY);
+      if (current) {
+        if (confirm("PIN 암호 잠금을 해제하시겠습니까?")) {
+          localStorage.removeItem(PIN_KEY);
+          showToast("암호 잠금이 해제되었습니다");
+          updatePinSettingsButtonLabel();
+        }
+      } else {
+        const newPin = prompt("새로운 4자리 숫자 암호를 입력하세요:");
+        if (newPin && newPin.length === 4 && /^\d+$/.test(newPin)) {
+          localStorage.setItem(PIN_KEY, newPin);
+          showToast("PIN 잠금이 설정되었습니다");
+          updatePinSettingsButtonLabel();
+        } else if (newPin !== null) {
+          showToast("4자리 숫자만 입력 가능합니다");
+        }
+      }
+    }
+
+    function updatePinSettingsButtonLabel() {
+      const btn = document.getElementById('pinToggleStatusBtn');
+      const isSet = !!localStorage.getItem(PIN_KEY);
+      btn.textContent = isSet ? "잠금 해제" : "암호 등록";
+      btn.className = isSet 
+        ? "px-2.5 py-1 rounded bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 font-medium" 
+        : "px-2.5 py-1 rounded bg-slate-200 dark:bg-zinc-700 font-medium";
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+    }
+
+    function renderPosts() {
+      const container = document.getElementById('postsContainer');
+      const emptyState = document.getElementById('emptyState');
+      const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
+
+      // Filter Logic
+      let filtered = posts.filter(post => {
+        // Category filter
+        if (currentCategoryFilter === 'pinned' && !post.isPinned) return false;
+        if (currentCategoryFilter !== 'all' && currentCategoryFilter !== 'pinned' && post.category !== currentCategoryFilter) {
+          return false;
+        }
+        // Search query
+        if (searchVal) {
+          const matchTitle = (post.title || '').toLowerCase().includes(searchVal);
+          const matchContent = (post.content || '').toLowerCase().includes(searchVal);
+          const matchTags = (post.tags || []).some(t => t.toLowerCase().includes(searchVal));
+          return matchTitle || matchContent || matchTags;
+        }
+        return true;
+      });
+
+      document.getElementById('postCountBadge').textContent = posts.length;
+
+      if (filtered.length === 0) {
+        container.innerHTML = "";
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      container.innerHTML = filtered.map(post => {
+        const dateObj = new Date(post.createdAt);
+        const dateStr = `${dateObj.getFullYear()}.${String(dateObj.getMonth() + 1).padStart(2, '0')}.${String(dateObj.getDate()).padStart(2, '0')} ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+        const htmlContent = marked.parse(post.content || '');
+
+        return `
+          <article class="bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800/90 rounded-2xl p-4 shadow-sm relative transition hover:shadow-md">
+            ${post.isPinned ? `
+              <div class="absolute top-3.5 right-3.5 text-amber-500 text-xs flex items-center gap-1 font-semibold">
+                <i class="fa-solid fa-thumbtack"></i>
+              </div>
+            ` : ''}
+            
+            <!-- Metadata Header -->
+            <div class="flex items-center gap-2 mb-2 text-xs text-slate-400">
+              <span class="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-medium">${post.category || '💡 생각'}</span>
+              <span>•</span>
+              <time>${dateStr}</time>
+            </div>
+
+            <!-- Title if present -->
+            ${post.title ? `<h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">${escapeHtml(post.title)}</h3>` : ''}
+
+            <!-- Rendered Markdown Body -->
+            <div class="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-zinc-300 text-sm leading-relaxed mb-3 break-words">
+              ${htmlContent}
+            </div>
+
+            <!-- Attached Image View -->
+            ${post.image ? `
+              <div class="mb-3 rounded-xl overflow-hidden border border-gray-100 dark:border-zinc-800">
+                <img src="${post.image}" alt="사진" class="w-full max-h-72 object-cover" loading="lazy">
+              </div>
+            ` : ''}
+
+            <!-- Tags -->
+            ${post.tags && post.tags.length > 0 ? `
+              <div class="flex flex-wrap gap-1.5 mb-3">
+                ${post.tags.map(t => `<span class="text-[11px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md font-medium">#${escapeHtml(t)}</span>`).join('')}
+              </div>
+            ` : ''}
+
+            <!-- Bottom Actions -->
+            <div class="pt-2 border-t border-gray-100 dark:border-zinc-800/80 flex items-center justify-between text-xs text-slate-400">
+              <button onclick="togglePin('${post.id}')" class="hover:text-amber-500 flex items-center gap-1">
+                <i class="${post.isPinned ? 'fa-solid text-amber-500' : 'fa-regular'} fa-star"></i>
+                <span>${post.isPinned ? '고정 해제' : '고정'}</span>
+              </button>
+              <div class="flex items-center gap-3">
+                <button onclick="editPost('${post.id}')" class="hover:text-blue-500"><i class="fa-regular fa-pen-to-square"></i> 수정</button>
+                <button onclick="deletePost('${post.id}')" class="hover:text-rose-500"><i class="fa-regular fa-trash-can"></i> 삭제</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function openEditorModal(isEdit = false) {
+      document.getElementById('editorModal').classList.remove('hidden');
+      if (!isEdit) {
+        currentEditingPostId = null;
+        document.getElementById('editorModalTitle').textContent = "새 기록 남기기";
+        document.getElementById('postTitle').value = "";
+        document.getElementById('postContent').value = "";
+        document.getElementById('postTags').value = "";
+        currentSelectedCategory = "💡 생각";
+        currentIsPinned = false;
+        currentAttachedImageBase64 = null;
+        removeAttachedImage();
+      }
+      updateCategoryButtonsUI();
+      updateEditorPinUI();
+      updateCharCount();
+    }
+
+    function closeEditorModal() {
+      document.getElementById('editorModal').classList.add('hidden');
+    }
+
+    function selectPostCategory(cat) {
+      currentSelectedCategory = cat;
+      updateCategoryButtonsUI();
+    }
+
+    function updateCategoryButtonsUI() {
+      const btns = document.querySelectorAll('#categoryRadios button');
+      btns.forEach(b => {
+        if (b.textContent.trim() === currentSelectedCategory) {
+          b.className = "cat-opt px-2.5 py-1 rounded-full border border-blue-500 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-medium";
+        } else {
+          b.className = "cat-opt px-2.5 py-1 rounded-full border border-gray-300 dark:border-zinc-700 text-slate-500";
+        }
+      });
+    }
+
+    function togglePinInEditor() {
+      currentIsPinned = !currentIsPinned;
+      updateEditorPinUI();
+    }
+
+    function updateEditorPinUI() {
+      const btn = document.getElementById('editorPinBtn');
+      if (currentIsPinned) {
+        btn.innerHTML = `<i class="fa-solid fa-star text-amber-500"></i><span class="text-amber-500 font-semibold">고정됨</span>`;
+      } else {
+        btn.innerHTML = `<i class="fa-regular fa-star"></i><span>상단 고정</span>`;
+      }
+    }
+
+    function handleImageAttach(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Max 5MB guard
+      if (file.size > 5 * 1024 * 1024) {
+        showToast("이미지는 최대 5MB까지 가능합니다");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        currentAttachedImageBase64 = e.target.result;
+        document.getElementById('imagePreview').src = currentAttachedImageBase64;
+        document.getElementById('imagePreviewContainer').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeAttachedImage() {
+      currentAttachedImageBase64 = null;
+      document.getElementById('imageInput').value = "";
+      document.getElementById('imagePreviewContainer').classList.add('hidden');
+    }
+
+    async function savePost() {
+      const content = document.getElementById('postContent').value.trim();
+      const title = document.getElementById('postTitle').value.trim();
+      const rawTags = document.getElementById('postTags').value;
+
+      if (!content && !title && !currentAttachedImageBase64) {
+        showToast("내용을 입력해주세요");
+        return;
+      }
+
+      // Parse tags
+      const tags = rawTags
+        .split(/[,#\s]+/)
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      const now = new Date().toISOString();
+
+      if (currentEditingPostId) {
+        // Edit existing
+        const target = posts.find(p => p.id === currentEditingPostId);
+        if (target) {
+          target.title = title;
+          target.content = content;
+          target.tags = tags;
+          target.category = currentSelectedCategory;
+          target.isPinned = currentIsPinned;
+          target.image = currentAttachedImageBase64;
+          target.updatedAt = now;
+          await savePostToDB(target);
+          showToast("기록이 수정되었습니다");
+        }
+      } else {
+        // Create new
+        const newPost = {
+          id: "post_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+          title: title,
+          content: content,
+          tags: tags,
+          category: currentSelectedCategory,
+          isPinned: currentIsPinned,
+          image: currentAttachedImageBase64,
+          createdAt: now,
+          updatedAt: now
+        };
+        await savePostToDB(newPost);
+        showToast("새 기록이 저장되었습니다");
+      }
+
+      closeEditorModal();
+      posts = await fetchAllPostsFromDB();
+      renderPosts();
+    }
+
+    function editPost(id) {
+      const post = posts.find(p => p.id === id);
+      if (!post) return;
+      currentEditingPostId = id;
+      openEditorModal(true);
+      document.getElementById('editorModalTitle').textContent = "기록 수정";
+      document.getElementById('postTitle').value = post.title || '';
+      document.getElementById('postContent').value = post.content || '';
+      document.getElementById('postTags').value = (post.tags || []).join(' ');
+      currentSelectedCategory = post.category || '💡 생각';
+      currentIsPinned = !!post.isPinned;
+      
+      if (post.image) {
+        currentAttachedImageBase64 = post.image;
+        document.getElementById('imagePreview').src = post.image;
+        document.getElementById('imagePreviewContainer').classList.remove('hidden');
+      } else {
+        removeAttachedImage();
+      }
+      updateCategoryButtonsUI();
+      updateEditorPinUI();
+      updateCharCount();
+    }
+
+    async function togglePin(id) {
+      const post = posts.find(p => p.id === id);
+      if (!post) return;
+      post.isPinned = !post.isPinned;
+      await savePostToDB(post);
+      posts = await fetchAllPostsFromDB();
+      renderPosts();
+      showToast(post.isPinned ? "상단에 고정되었습니다" : "고정이 해제되었습니다");
+    }
+
+    async function deletePost(id) {
+      if (confirm("이 기록을 삭제하시겠습니까?")) {
+        await deletePostFromDB(id);
+        posts = await fetchAllPostsFromDB();
+        renderPosts();
+        showToast("기록이 삭제되었습니다");
+      }
+    }
+
+    function selectCategoryFilter(cat) {
+      currentCategoryFilter = cat;
+      const chips = document.querySelectorAll('#categoryChips button');
+      chips.forEach(b => {
+        b.className = "chip px-3 py-1.5 rounded-full bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 shrink-0";
+      });
+      event.target.className = "chip active-chip px-3 py-1.5 rounded-full bg-slate-900 text-white dark:bg-white dark:text-black font-medium shrink-0";
+      renderPosts();
+    }
+
+    function applyFilters() {
+      const val = document.getElementById('searchInput').value;
+      document.getElementById('clearSearchBtn').classList.toggle('hidden', val.length === 0);
+      renderPosts();
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = "";
+      document.getElementById('clearSearchBtn').classList.add('hidden');
+      renderPosts();
+    }
+
+    function openSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    function exportBackupData() {
+      if (posts.length === 0) {
+        showToast("백업할 데이터가 없습니다");
+        return;
+      }
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(posts, null, 2));
+      const downloadAnchor = document.createElement('a');
+      const filename = `privatelog_backup_${new Date().toISOString().slice(0,10)}.json`;
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", filename);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast("백업 파일이 생성되었습니다");
+    }
+
+    function importBackupData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            for (const item of imported) {
+              if (item.id && item.createdAt) {
+                await savePostToDB(item);
+              }
+            }
+            posts = await fetchAllPostsFromDB();
+            renderPosts();
+            closeSettingsModal();
+            showToast(`${imported.length}개의 기록을 성공적으로 복원했습니다`);
+          } else {
+            showToast("올바른 백업 파일 형식이 아닙니다");
+          }
+        } catch (err) {
+          showToast("파일을 읽는 도중 오류가 발생했습니다");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    async function clearAllDataPrompt() {
+      if (confirm("정말로 모든 기록을 삭제하시겠습니까? 백업되지 않은 데이터는 복구할 수 없습니다.")) {
+        const tx = db.transaction("posts", "readwrite");
+        tx.objectStore("posts").clear();
+        tx.oncomplete = async () => {
+          posts = [];
+          renderPosts();
+          closeSettingsModal();
+          showToast("모든 데이터가 초기화되었습니다");
+        };
+      }
+    }
+
+    /* Utility Helpers */
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 2000);
+    }
+
+    function escapeHtml(string) {
+      return String(string)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function updateCharCount() {
+      const len = document.getElementById('postContent').value.length;
+      document.getElementById('charCount').textContent = `${len}자`;
+    }
+
+    document.getElementById('postContent').addEventListener('input', updateCharCount);
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      initTheme();
+      checkPinOnLaunch();
+      await initDB();
+      posts = await fetchAllPostsFromDB();
+      renderPosts();
+    });
+  </script>
+</body>
+</html>
